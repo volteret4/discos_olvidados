@@ -151,6 +151,8 @@ tr:hover td { background: var(--surface-2); }
 .clickable:hover { color: #fff; text-decoration: underline; }
 .never { color: var(--danger); font-weight: 600; }
 .stale-high { color: var(--warning); }
+.icon-yes { color: var(--accent); font-weight: 700; }
+.icon-no { color: var(--danger); font-weight: 700; }
 .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 14px; }
 .pagination button { background: var(--surface-2); color: var(--text); padding: 6px 10px; }
 .pagination button.active { background: var(--accent); color: var(--bg); }
@@ -338,7 +340,7 @@ async function searchAlbums(page) {
             <td class="clickable" data-field="label" data-value="${escapeHtml(it.label || '')}">${escapeHtml(it.label || '')}</td>
             <td class="clickable" data-field="genre" data-value="${escapeHtml(it.genre || '')}">${escapeHtml(it.genre || '')}</td>
             <td>${formatDaysSince(it.days_since)}</td>
-            <td>${it.in_qbittorrent ? '✓' : '✗'}</td>
+            <td>${it.in_qbittorrent ? '<span class="icon-yes">✓</span>' : '<span class="icon-no">✗</span>'}</td>
         </tr>
     `).join('');
     document.querySelectorAll('#albums-results [data-field]').forEach(el => {
