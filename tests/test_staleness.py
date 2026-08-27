@@ -28,12 +28,31 @@ def test_albums_preserve_local_metadata(patched_staleness):
     assert rows["Geogaddi"]["year"] == "2002"
 
 
+def test_albums_in_qbittorrent_matches_across_accents(patched_staleness):
+    # trasvase/music.db tiene "Bjork" (sin acentos, collection=2) para
+    # Homogenic -- debe emparejar con "Björk" igual que en lastfm_stats.db.
+    rows = {r["album"]: r for r in patched_staleness.get_report("albums")}
+    assert rows["Homogenic"]["in_qbittorrent"] is True
+
+
+def test_albums_in_qbittorrent_false_when_absent_or_wrong_collection(patched_staleness):
+    rows = {r["album"]: r for r in patched_staleness.get_report("albums")}
+    # Geogaddi está en trasvase pero con collection=1 (biblioteca
+    # principal, no backup) -- no cuenta como "en qBittorrent".
+    assert rows["Geogaddi"]["in_qbittorrent"] is False
+    # Nunca Escuchado no aparece en absoluto en trasvase.
+    assert rows["Nunca Escuchado"]["in_qbittorrent"] is False
+
+
 def test_artists_report(patched_staleness):
     rows = {r["artist"]: r for r in patched_staleness.get_report("artists")}
     assert rows["Björk"]["days_since"] is not None
     assert rows["Björk"]["album_count"] == 1
+    assert rows["Björk"]["backed_up_count"] == 1
     assert rows["Artista Sin Escuchas"]["days_since"] is None
     assert rows["Artista Sin Escuchas"]["album_count"] == 1
+    assert rows["Artista Sin Escuchas"]["backed_up_count"] == 0
+    assert rows["Boards of Canada"]["backed_up_count"] == 0  # Geogaddi está en collection=1, no cuenta
 
 
 def test_get_report_caches_between_calls(patched_staleness, monkeypatch):

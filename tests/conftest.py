@@ -80,9 +80,41 @@ def lastfm_stats_path(tmp_path):
 
 
 @pytest.fixture
-def patched_db(monkeypatch, musica_local_path, lastfm_stats_path):
+def trasvase_path(tmp_path):
+    path = tmp_path / "music.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        """
+        CREATE TABLE artists (id INTEGER PRIMARY KEY, name TEXT UNIQUE, mbid TEXT);
+        CREATE TABLE albums (
+            id INTEGER PRIMARY KEY, artist_id INTEGER, title TEXT, label TEXT,
+            genre TEXT, year INTEGER, path TEXT UNIQUE, collection INTEGER, mbid TEXT
+        );
+        """
+    )
+    # "Bjork" (sin acentos, como en lastfm_stats.db) -- prueba que el
+    # cruce con qBittorrent también normaliza. Solo Homogenic está
+    # respaldada; Geogaddi y Nunca Escuchado no aparecen aquí.
+    conn.execute("INSERT INTO artists (id, name) VALUES (1, 'Bjork')")
+    conn.execute(
+        "INSERT INTO albums (artist_id, title, path, collection) VALUES (1, 'Homogenic', '/mnt/music/coleccion2/bjork-homogenic', 2)"
+    )
+    # Fila en collection=1 (biblioteca principal de trasvase, no backup)
+    # que NO debe contar como "en qBittorrent".
+    conn.execute("INSERT INTO artists (id, name) VALUES (2, 'Boards of Canada')")
+    conn.execute(
+        "INSERT INTO albums (artist_id, title, path, collection) VALUES (2, 'Geogaddi', '/mnt/music/coleccion1/boc-geogaddi', 1)"
+    )
+    conn.commit()
+    conn.close()
+    return str(path)
+
+
+@pytest.fixture
+def patched_db(monkeypatch, musica_local_path, lastfm_stats_path, trasvase_path):
     monkeypatch.setattr(db_module, "MUSICA_LOCAL_DB", musica_local_path)
     monkeypatch.setattr(db_module, "LASTFM_DB", lastfm_stats_path)
+    monkeypatch.setattr(db_module, "TRASVASE_DB", trasvase_path)
     return db_module
 
 

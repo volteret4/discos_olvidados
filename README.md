@@ -2,19 +2,26 @@
 
 Muestra los álbumes y artistas de la colección propia
 (`musica_local.sqlite`) ordenados por cuánto hace que no se escuchan
-según Last.fm (`lastfm_stats.db`) — para decidir qué borrar. Parte de
+según Last.fm (`lastfm_stats.db`), y si además están respaldados en
+qBittorrent (vía `music.db` de `services/trasvase`) — para decidir qué
+borrar con más confianza. Parte de
 [repeat-one](https://github.com/volteret4/repeat-one).
 
 ## Cómo funciona
 
 - **Álbumes** / **Artistas**: dos pestañas, cada una con una tabla
   ordenable (por defecto, lo más olvidado primero) y filtros por
-  artista/álbum/género/sello y "nunca escuchado / alguna vez".
-- El cruce entre la colección propia y los scrobbles de Last.fm se
-  calcula al arrancar el contenedor y se cachea en memoria — botón
-  "Actualizar" para recalcular bajo demanda (por ejemplo, tras escuchar
-  algo hoy mismo).
-- Sin base de datos propia ni secretos — solo lee las dos SQLite que ya
+  artista/álbum/género/sello, "nunca escuchado / alguna vez" y "en
+  qBittorrent / no" (álbumes; en artistas se muestra el recuento
+  respaldados/total).
+- "En qBittorrent" se resuelve contra `music.db` de `services/trasvase`
+  (`albums.collection=2`, la carpeta de backup en
+  `/ruta/al/nas/lidarr/torrents_backup`, ya escaneada a diario por ese
+  servicio) — no consulta la API de qBittorrent en vivo.
+- El cruce se calcula al arrancar el contenedor y se cachea en memoria —
+  botón "Actualizar" para recalcular bajo demanda (por ejemplo, tras
+  escuchar algo hoy mismo).
+- Sin base de datos propia ni secretos — solo lee las tres SQLite que ya
   usan otros servicios del repo.
 
 ## Variables de entorno
@@ -22,6 +29,7 @@ según Last.fm (`lastfm_stats.db`) — para decidir qué borrar. Parte de
 ```bash
 LASTFM_DB=/data/lastfm_stats.db
 MUSICA_LOCAL_DB=/musica_local.sqlite
+TRASVASE_DB=/trasvase.db
 PORT=5000
 ```
 

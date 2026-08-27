@@ -1,11 +1,13 @@
 """Cruza la colección propia (musica_local.sqlite) con los scrobbles de
 Last.fm (lastfm_stats.db) para calcular cuánto hace que no se escucha
-cada álbum/artista. Sin base de datos propia -- todo se calcula al vuelo
-y se cachea en memoria de proceso (ver get_report()/refresh_all())."""
+cada álbum/artista, y con el backup de qBittorrent/Lidarr (music.db de
+services/trasvase, collection=2) para saber si además está respaldado
+ahí. Sin base de datos propia -- todo se calcula al vuelo y se cachea en
+memoria de proceso (ver get_report()/refresh_all())."""
 import time
 from datetime import datetime, timezone
 
-from db import get_lastfm_conn, get_musica_local_conn
+from db import get_lastfm_conn, get_musica_local_conn, get_trasvase_conn
 from normalize import normalize
 
 _CACHE: dict = {"albums": None, "artists": None, "computed_at": None}
@@ -63,9 +65,27 @@ def _load_lastfm_album_last_ts() -> dict:
         conn.close()
 
 
+def _load_qbittorrent_index() -> set:
+    """{(normalize(artist), normalize(album))} -- álbumes presentes en el
+    backup de qBittorrent/Lidarr (services/trasvase music.db,
+    collection=2 = /ruta/al/nas/lidarr/torrents_backup en pepecono)."""
+    conn = get_trasvase_conn()
+    try:
+        return {
+            (normalize(row["name"]), normalize(row["title"]))
+            for row in conn.execute(
+                "SELECT ar.name, al.title FROM albums al "
+                "JOIN artists ar ON ar.id = al.artist_id WHERE al.collection = 2"
+            )
+        }
+    finally:
+        conn.close()
+
+
 def _compute_albums() -> list[dict]:
     lastfm_artist = _load_lastfm_artist_index()
     lastfm_album_ts = _load_lastfm_album_last_ts()
+    qbittorrent_index = _load_qbittorrent_index()
 
     conn = get_musica_local_conn()
     try:
@@ -78,40 +98,48 @@ def _compute_albums() -> list[dict]:
 
     rows = []
     for a in albums:
-        artist_match = lastfm_artist.get(normalize(a["artist"]))
+        artist_norm, album_norm = normalize(a["artist"]), normalize(a["album"])
+        artist_match = lastfm_artist.get(artist_norm)
         last_ts = None
         if artist_match:
             artist_id, _ = artist_match
-            last_ts = lastfm_album_ts.get((artist_id, normalize(a["album"])))
+            last_ts = lastfm_album_ts.get((artist_id, album_norm))
         rows.append({
             "artist": a["artist"], "album": a["album"], "year": a["year"],
             "label": a["label"], "genre": a["genre"],
             "last_listened": _iso(last_ts), "days_since": _days_since(last_ts),
+            "in_qbittorrent": (artist_norm, album_norm) in qbittorrent_index,
         })
     return rows
 
 
 def _compute_artists() -> list[dict]:
     lastfm_artist = _load_lastfm_artist_index()
+    qbittorrent_index = _load_qbittorrent_index()
 
     conn = get_musica_local_conn()
     try:
-        artists = conn.execute(
-            """
-            SELECT ar.name AS artist, COUNT(al.id) AS album_count
-            FROM artists ar LEFT JOIN albums al ON al.artist_id = ar.id
-            GROUP BY ar.id
-            """
+        all_artists = conn.execute("SELECT name FROM artists").fetchall()
+        album_rows = conn.execute(
+            "SELECT ar.name AS artist, al.name AS album FROM artists ar JOIN albums al ON al.artist_id = ar.id"
         ).fetchall()
     finally:
         conn.close()
 
+    album_count, backed_up_count = {}, {}
+    for r in album_rows:
+        album_count[r["artist"]] = album_count.get(r["artist"], 0) + 1
+        if (normalize(r["artist"]), normalize(r["album"])) in qbittorrent_index:
+            backed_up_count[r["artist"]] = backed_up_count.get(r["artist"], 0) + 1
+
     rows = []
-    for a in artists:
-        match = lastfm_artist.get(normalize(a["artist"]))
+    for a in all_artists:
+        name = a["name"]
+        match = lastfm_artist.get(normalize(name))
         last_ts = match[1] if match else None
         rows.append({
-            "artist": a["artist"], "album_count": a["album_count"],
+            "artist": name, "album_count": album_count.get(name, 0),
+            "backed_up_count": backed_up_count.get(name, 0),
             "last_listened": _iso(last_ts), "days_since": _days_since(last_ts),
         })
     return rows

@@ -40,6 +40,27 @@ def test_albums_filter_never_listened_yes(client):
     assert data["items"][0]["album"] == "Nunca Escuchado"
 
 
+def test_albums_filter_qbittorrent_yes(client):
+    r = client.get("/api/albums?qbittorrent=yes")
+    data = r.get_json()
+    assert data["total"] == 1
+    assert data["items"][0]["album"] == "Homogenic"
+
+
+def test_albums_filter_qbittorrent_no(client):
+    r = client.get("/api/albums?qbittorrent=no")
+    data = r.get_json()
+    assert data["total"] == 2
+    assert {it["album"] for it in data["items"]} == {"Geogaddi", "Nunca Escuchado"}
+
+
+def test_artists_backed_up_count(client):
+    r = client.get("/api/artists?artist=Björk")
+    data = r.get_json()
+    assert data["items"][0]["backed_up_count"] == 1
+    assert data["items"][0]["album_count"] == 1
+
+
 def test_albums_filter_never_listened_no(client):
     r = client.get("/api/albums?never_listened=no")
     data = r.get_json()

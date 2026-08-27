@@ -34,6 +34,7 @@ def _apply_query(rows, args, sortable_fields, default_sort="days_since"):
     artist = (args.get("artist") or "").strip().lower()
     album = (args.get("album") or "").strip().lower()
     never = args.get("never_listened")
+    qbittorrent = args.get("qbittorrent")
 
     filtered = rows
     if genre:
@@ -48,6 +49,10 @@ def _apply_query(rows, args, sortable_fields, default_sort="days_since"):
         filtered = [r for r in filtered if r["days_since"] is None]
     elif never == "no":
         filtered = [r for r in filtered if r["days_since"] is not None]
+    if qbittorrent == "yes":
+        filtered = [r for r in filtered if r.get("in_qbittorrent")]
+    elif qbittorrent == "no":
+        filtered = [r for r in filtered if not r.get("in_qbittorrent")]
 
     sort_key = args.get("sort") or default_sort
     if sort_key not in sortable_fields:
@@ -71,13 +76,19 @@ def health():
 @app.route("/api/albums")
 def api_albums():
     rows = staleness.get_report("albums")
-    return jsonify(_apply_query(rows, request.args, {"artist", "album", "year", "label", "genre", "days_since"}))
+    return jsonify(_apply_query(
+        rows, request.args,
+        {"artist", "album", "year", "label", "genre", "days_since", "in_qbittorrent"},
+    ))
 
 
 @app.route("/api/artists")
 def api_artists():
     rows = staleness.get_report("artists")
-    return jsonify(_apply_query(rows, request.args, {"artist", "album_count", "days_since"}))
+    return jsonify(_apply_query(
+        rows, request.args,
+        {"artist", "album_count", "backed_up_count", "days_since"},
+    ))
 
 
 @app.route("/api/filters/meta")
@@ -164,6 +175,9 @@ tr:hover td { background: var(--surface-2); }
         <div><label>Escuchado</label>
             <select id="fa_never"><option value="">Todos</option><option value="yes">Nunca</option><option value="no">Alguna vez</option></select>
         </div>
+        <div><label>En qBittorrent</label>
+            <select id="fa_qbittorrent"><option value="">Todos</option><option value="yes">Sí</option><option value="no">No</option></select>
+        </div>
         <datalist id="genres_list"></datalist>
         <datalist id="labels_list"></datalist>
         <div class="actions">
@@ -180,6 +194,7 @@ tr:hover td { background: var(--surface-2); }
             <th class="sortable" data-sort="label">Sello<span class="sort-arrow"></span></th>
             <th class="sortable" data-sort="genre">Género<span class="sort-arrow"></span></th>
             <th class="sortable" data-sort="days_since">Sin escuchar<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="in_qbittorrent">qBittorrent<span class="sort-arrow"></span></th>
         </tr></thead>
         <tbody id="albums-results"></tbody>
     </table>
@@ -202,6 +217,7 @@ tr:hover td { background: var(--surface-2); }
         <thead><tr>
             <th class="sortable" data-sort="artist">Artista<span class="sort-arrow"></span></th>
             <th class="sortable" data-sort="album_count">Álbumes<span class="sort-arrow"></span></th>
+            <th class="sortable" data-sort="backed_up_count">En qBittorrent<span class="sort-arrow"></span></th>
             <th class="sortable" data-sort="days_since">Sin escuchar<span class="sort-arrow"></span></th>
         </tr></thead>
         <tbody id="artists-results"></tbody>
@@ -265,6 +281,7 @@ async function loadMeta() {
 function clearAlbumFilters() {
     document.querySelectorAll('#tab-albumes .filters input').forEach(i => i.value = '');
     document.getElementById('fa_never').value = '';
+    document.getElementById('fa_qbittorrent').value = '';
     searchAlbums(1);
 }
 
@@ -300,11 +317,13 @@ async function searchAlbums(page) {
     const genre = document.getElementById('fa_genre').value.trim();
     const label = document.getElementById('fa_label').value.trim();
     const never = document.getElementById('fa_never').value;
+    const qbittorrent = document.getElementById('fa_qbittorrent').value;
     if (artist) params.set('artist', artist);
     if (album) params.set('album', album);
     if (genre) params.set('genre', genre);
     if (label) params.set('label', label);
     if (never) params.set('never_listened', never);
+    if (qbittorrent) params.set('qbittorrent', qbittorrent);
 
     const r = await fetch('/api/albums?' + params.toString());
     const data = await r.json();
@@ -319,6 +338,7 @@ async function searchAlbums(page) {
             <td class="clickable" data-field="label" data-value="${escapeHtml(it.label || '')}">${escapeHtml(it.label || '')}</td>
             <td class="clickable" data-field="genre" data-value="${escapeHtml(it.genre || '')}">${escapeHtml(it.genre || '')}</td>
             <td>${formatDaysSince(it.days_since)}</td>
+            <td>${it.in_qbittorrent ? '✓' : '✗'}</td>
         </tr>
     `).join('');
     document.querySelectorAll('#albums-results [data-field]').forEach(el => {
@@ -366,6 +386,7 @@ async function searchArtists(page) {
         <tr>
             <td class="clickable" data-value="${escapeHtml(it.artist)}">${escapeHtml(it.artist)}</td>
             <td>${it.album_count}</td>
+            <td>${it.backed_up_count} / ${it.album_count}</td>
             <td>${formatDaysSince(it.days_since)}</td>
         </tr>
     `).join('');
