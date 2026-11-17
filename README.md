@@ -16,7 +16,7 @@ borrar con más confianza. Parte de
   respaldados/total).
 - "En qBittorrent" se resuelve contra `music.db` de `services/trasvase`
   (`albums.collection=2`, la carpeta de backup en
-  `/ruta/al/nas/lidarr/torrents_backup`, ya escaneada a diario por ese
+  la carpeta de descargas de qBittorrent, ya escaneada a diario por ese
   servicio) — no consulta la API de qBittorrent en vivo.
 - El cruce se calcula al arrancar el contenedor y se cachea en memoria —
   botón "Actualizar" para recalcular bajo demanda (por ejemplo, tras

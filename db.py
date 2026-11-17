@@ -23,8 +23,8 @@ def get_musica_local_conn() -> sqlite3.Connection:
 
 def get_trasvase_conn() -> sqlite3.Connection:
     # music.db de services/trasvase -- albums.collection=2 es la carpeta
-    # de backup de qBittorrent/Lidarr (/ruta/al/nas/lidarr/torrents_backup en
-    # pepecono), ya escaneada a diario por ese servicio. Se reutiliza en
+    # de backup de qBittorrent/Lidarr (la carpeta de descargas
+    # del servidor), ya escaneada a diario por ese servicio. Se reutiliza en
     # vez de consultar qBittorrent en vivo.
     conn = sqlite3.connect(f"file:{TRASVASE_DB}?mode=ro&immutable=1", uri=True)
     conn.row_factory = sqlite3.Row

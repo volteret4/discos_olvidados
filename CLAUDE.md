@@ -14,7 +14,7 @@
 - `staleness.py` — el cruce en sí. Sin base de datos propia: carga
   `lastfm_stats.db` (artistas + `MAX(ts)` por artista/álbum agregado con
   `GROUP BY`) y `music.db` de `services/trasvase` (`albums.collection=2`
-  = `/ruta/al/nas/lidarr/torrents_backup` en pepecono, ya escaneado a diario
+  = `la carpeta de descargas de qBittorrent`, ya escaneado a diario
   por ese servicio) en diccionarios/sets de Python, recorre
   `musica_local.sqlite` y busca cada nombre propio normalizado en esos
   índices. Resultado cacheado en memoria de proceso (`_CACHE`),
